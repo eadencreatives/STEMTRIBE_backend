@@ -1,6 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const passport = require('passport');  // ADD THIS
 const User = require('../models/User');
 const router = express.Router();
 
@@ -31,6 +32,40 @@ const isAdmin = async (req, res, next) => {
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
+
+// ===== GOOGLE OAUTH ROUTES =====
+router.get('/google', 
+  passport.authenticate('google', { scope: ['profile', 'email'] })
+);
+
+router.get('/google/callback', 
+  passport.authenticate('google', { failureRedirect: `${process.env.CLIENT_URL}/login` }),
+  async (req, res) => {
+    try {
+      // Find or create user from Google profile
+      let user = await User.findOne({ email: req.user.emails[0].value });
+      if (!user) {
+        user = new User({
+          name: req.user.displayName,
+          email: req.user.emails[0].value,
+          googleId: req.user.id,
+          role: 'student'
+        });
+        await user.save();
+      }
+      
+      // Generate JWT
+      const payload = { userId: user._id };
+      const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' });
+      
+      // Redirect to frontend dashboard
+      res.redirect(`${process.env.CLIENT_URL}/dashboard?token=${token}`);
+    } catch (error) {
+      console.error('OAuth callback error:', error);
+      res.redirect(`${process.env.CLIENT_URL}/login?error=oauth_failed`);
+    }
+  }
+);
 
 // Register
 router.post('/register', async (req, res) => {
