@@ -45,7 +45,7 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 // =======================
-// Passport Google OAuth
+// Passport Google & GitHub OAuth
 // =======================
 const User = require('./models/User');
 
@@ -54,7 +54,7 @@ const generateToken = (userId) => jwt.sign({ userId }, process.env.JWT_SECRET, {
 passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  callbackURL: "https://stemtribe-backend.onrender.com/auth/google/callback"
+  callbackURL: process.env.GOOGLE_CALLBACK_URL || "http://localhost:5000/auth/google/callback"
 },
 async (accessToken, refreshToken, profile, done) => {
   try {
@@ -78,7 +78,7 @@ async (accessToken, refreshToken, profile, done) => {
 passport.use(new GitHubStrategy({
   clientID: process.env.GITHUB_CLIENT_ID,
   clientSecret: process.env.GITHUB_CLIENT_SECRET,
-  callbackURL: process.env.GITHUB_CALLBACK_URL
+  callbackURL: process.env.GITHUB_CALLBACK_URL || "http://localhost:5000/auth/github/callback"
 },
 async (accessToken, refreshToken, profile, done) => {
   try {
@@ -129,22 +129,13 @@ app.get('/api/all-users', async (req, res) => {
   }
 });
 
-// Google OAuth routes (use environment-appropriate callback URL to avoid redirect_uri_mismatch)
-app.get('/auth/google', (req, res, next) => {
-  const callbackURL = process.env.NODE_ENV === 'production'
-    ? process.env.GOOGLE_CALLBACK_URL
-    : (process.env.GOOGLE_CALLBACK_URL_LOCAL || 'http://localhost:5000/auth/google/callback');
-  console.log('[auth] initiating Google OAuth, callbackURL=', callbackURL);
-  passport.authenticate('google', { scope: ['profile', 'email'], callbackURL })(req, res, next);
-});
+// Google OAuth routes
+app.get('/auth/google', 
+  passport.authenticate('google', { scope: ['profile', 'email'] })
+);
 
 app.get('/auth/google/callback',
-  (req, res, next) => {
-    const callbackURL = process.env.NODE_ENV === 'production'
-      ? process.env.GOOGLE_CALLBACK_URL
-      : (process.env.GOOGLE_CALLBACK_URL_LOCAL || 'http://localhost:5000/auth/google/callback');
-    passport.authenticate('google', { failureRedirect: `${process.env.CLIENT_URL}/login`, callbackURL })(req, res, next);
-  },
+  passport.authenticate('google', { failureRedirect: `${process.env.CLIENT_URL}/login` }),
   (req, res) => {
     const token = generateToken(req.user._id);
     const redirectUrl = `${process.env.CLIENT_URL}/login?token=${token}&user=${encodeURIComponent(JSON.stringify({ id: req.user._id, name: req.user.name, email: req.user.email, role: req.user.role }))}`;
@@ -152,22 +143,13 @@ app.get('/auth/google/callback',
   }
 );
 
-// GitHub OAuth routes (use environment-appropriate callback URL)
-app.get('/auth/github', (req, res, next) => {
-  const callbackURL = process.env.NODE_ENV === 'production'
-    ? process.env.GITHUB_CALLBACK_URL
-    : (process.env.GITHUB_CALLBACK_URL_LOCAL || 'http://localhost:5000/auth/github/callback');
-  console.log('[auth] initiating GitHub OAuth, callbackURL=', callbackURL);
-  passport.authenticate('github', { scope: ['user:email'], callbackURL })(req, res, next);
-});
+// GitHub OAuth routes
+app.get('/auth/github', 
+  passport.authenticate('github', { scope: ['user:email'] })
+);
 
 app.get('/auth/github/callback',
-  (req, res, next) => {
-    const callbackURL = process.env.NODE_ENV === 'production'
-      ? process.env.GITHUB_CALLBACK_URL
-      : (process.env.GITHUB_CALLBACK_URL_LOCAL || 'http://localhost:5000/auth/github/callback');
-    passport.authenticate('github', { failureRedirect: `${process.env.CLIENT_URL}/login`, callbackURL })(req, res, next);
-  },
+  passport.authenticate('github', { failureRedirect: `${process.env.CLIENT_URL}/login` }),
   (req, res) => {
     const token = generateToken(req.user._id);
     const redirectUrl = `${process.env.CLIENT_URL}/login?token=${token}&user=${encodeURIComponent(JSON.stringify({ id: req.user._id, name: req.user.name, email: req.user.email, role: req.user.role }))}`;
@@ -181,15 +163,15 @@ app.use('/api/auth', require('./routes/auth'));
 // Debug endpoint to inspect OAuth callback settings (does NOT return secrets)
 app.get('/auth/debug', (req, res) => {
   const env = process.env.NODE_ENV || 'development';
-  const googleProd = process.env.GOOGLE_CALLBACK_URL || null;
-  const googleLocal = process.env.GOOGLE_CALLBACK_URL_LOCAL || 'http://localhost:5000/auth/google/callback';
-  const githubProd = process.env.GITHUB_CALLBACK_URL || null;
-  const githubLocal = process.env.GITHUB_CALLBACK_URL_LOCAL || 'http://localhost:5000/auth/github/callback';
   res.json({
     env,
     clientUrl: process.env.CLIENT_URL || null,
-    google: { production: googleProd, local: googleLocal },
-    github: { production: githubProd, local: githubLocal }
+    google: { 
+      callbackURL: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:5000/auth/google/callback'
+    },
+    github: { 
+      callbackURL: process.env.GITHUB_CALLBACK_URL || 'http://localhost:5000/auth/github/callback'
+    }
   });
 });
 
@@ -225,8 +207,8 @@ const startServer = async () => {
     console.log(`📍 Health: http://localhost:${PORT}/api/health`);
     console.log(`📊 Users: http://localhost:${PORT}/api/all-users`);
     console.log(`🌐 Google OAuth: http://localhost:${PORT}/auth/google`);
+    console.log(`🌐 GitHub OAuth: http://localhost:${PORT}/auth/github`);
   });
 };
 
 startServer();
-
