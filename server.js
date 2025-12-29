@@ -2,7 +2,6 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const session = require('express-session');
 const cookieParser = require('cookie-parser');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
@@ -15,99 +14,107 @@ const app = express();
 // =======================
 // Middleware
 // =======================
-const allowedOrigins = [
-  process.env.CLIENT_URL || 'http://localhost:5173',
-  'http://localhost:3000'
-];
 
 app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
-    return callback(new Error('Not allowed by CORS'));
-  },
+  origin: process.env.CLIENT_URL, // e.g. https://your-frontend.vercel.app
   credentials: true
 }));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-app.use(session({
-  secret: process.env.SESSION_SECRET,
-  resave: false,
-  saveUninitialized: false,
-  cookie: { 
-    secure: process.env.NODE_ENV === 'production', 
-    httpOnly: true,
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-    maxAge: 24 * 60 * 60 * 1000
-  }
-}));
+
 app.use(passport.initialize());
-app.use(passport.session());
 
 // =======================
-// Passport Google & GitHub OAuth
+// MongoDB Model
 // =======================
+
 const User = require('./models/User');
 
-const generateToken = (userId) => jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '7d' });
+// =======================
+// JWT Helper
+// =======================
 
-passport.use(new GoogleStrategy({
-  clientID: process.env.GOOGLE_CLIENT_ID,
-  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  callbackURL: process.env.GOOGLE_CALLBACK_URL || "http://localhost:5000/auth/google/callback"
-},
-async (accessToken, refreshToken, profile, done) => {
-  try {
-    const email = profile.emails?.[0]?.value;
-    let user = await User.findOne({ $or: [{ providerId: profile.id }, { email }] });
-    if (!user) {
-      user = await User.create({
-        name: profile.displayName || 'Google User',
-        email,
-        provider: 'google',
-        providerId: profile.id,
-        avatar: profile.photos?.[0]?.value
+const generateToken = (userId) => {
+  return jwt.sign(
+    { userId },
+    process.env.JWT_SECRET,
+    { expiresIn: '7d' }
+  );
+};
+
+// =======================
+// Passport Google OAuth
+// =======================
+
+passport.use(new GoogleStrategy(
+  {
+    clientID: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    callbackURL: process.env.GOOGLE_CALLBACK_URL
+  },
+  async (accessToken, refreshToken, profile, done) => {
+    try {
+      const email = profile.emails?.[0]?.value;
+
+      let user = await User.findOne({
+        $or: [{ providerId: profile.id }, { email }]
       });
-    }
-    return done(null, user);
-  } catch (error) {
-    return done(error, null);
-  }
-}));
 
-passport.use(new GitHubStrategy({
-  clientID: process.env.GITHUB_CLIENT_ID,
-  clientSecret: process.env.GITHUB_CLIENT_SECRET,
-  callbackURL: process.env.GITHUB_CALLBACK_URL || "http://localhost:5000/auth/github/callback"
-},
-async (accessToken, refreshToken, profile, done) => {
-  try {
-    const email = profile.emails?.[0]?.value || `${profile.username}@github.local`;
-    let user = await User.findOne({ $or: [{ providerId: profile.id }, { email }] });
-    if (!user) {
-      user = await User.create({
-        name: profile.displayName || profile.username,
-        email,
-        provider: 'github',
-        providerId: profile.id,
-        avatar: profile.photos?.[0]?.value
+      if (!user) {
+        user = await User.create({
+          name: profile.displayName,
+          email,
+          provider: 'google',
+          providerId: profile.id,
+          avatar: profile.photos?.[0]?.value
+        });
+      }
+
+      return done(null, user);
+    } catch (err) {
+      return done(err, null);
+    }
+  }
+));
+
+// =======================
+// Passport GitHub OAuth
+// =======================
+
+passport.use(new GitHubStrategy(
+  {
+    clientID: process.env.GITHUB_CLIENT_ID,
+    clientSecret: process.env.GITHUB_CLIENT_SECRET,
+    callbackURL: process.env.GITHUB_CALLBACK_URL
+  },
+  async (accessToken, refreshToken, profile, done) => {
+    try {
+      const email =
+        profile.emails?.[0]?.value ||
+        `${profile.username}@github.local`;
+
+      let user = await User.findOne({
+        $or: [{ providerId: profile.id }, { email }]
       });
-    }
-    return done(null, user);
-  } catch (error) {
-    return done(error, null);
-  }
-}));
 
-passport.serializeUser((user, done) => done(null, user.id || user._id));
-passport.deserializeUser(async (id, done) => {
-  try {
-    const u = await User.findById(id).select('-password');
-    done(null, u);
-  } catch (err) {
-    done(err, null);
+      if (!user) {
+        user = await User.create({
+          name: profile.displayName || profile.username,
+          email,
+          provider: 'github',
+          providerId: profile.id,
+          avatar: profile.photos?.[0]?.value
+        });
+      }
+
+      return done(null, user);
+    } catch (err) {
+      return done(err, null);
+    }
   }
-});
+));
 
 // =======================
 // Routes
@@ -115,100 +122,68 @@ passport.deserializeUser(async (id, done) => {
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ message: 'StemTribe Africa LMS Backend running!', timestamp: new Date() });
-});
-
-// Temporary debug endpoint for users
-app.get('/api/all-users', async (req, res) => {
-  try {
-    const User = require('./models/User');
-    const users = await User.find().select('-password').sort({ createdAt: -1 });
-    res.json({ success: true, count: users.length, users });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
+  res.json({
+    message: 'StemTribe Africa LMS Backend running!',
+    time: new Date()
+  });
 });
 
 // Google OAuth routes
-app.get('/auth/google', 
+app.get(
+  '/auth/google',
   passport.authenticate('google', { scope: ['profile', 'email'] })
 );
 
-app.get('/auth/google/callback',
-  passport.authenticate('google', { failureRedirect: `${process.env.CLIENT_URL}/login` }),
+app.get(
+  '/auth/google/callback',
+  passport.authenticate('google', { session: false, failureRedirect: `${process.env.CLIENT_URL}/login` }),
   (req, res) => {
     const token = generateToken(req.user._id);
-    const redirectUrl = `${process.env.CLIENT_URL}/login?token=${token}&user=${encodeURIComponent(JSON.stringify({ id: req.user._id, name: req.user.name, email: req.user.email, role: req.user.role }))}`;
-    res.redirect(redirectUrl);
+    res.redirect(`${process.env.CLIENT_URL}/login?token=${token}`);
   }
 );
 
 // GitHub OAuth routes
-app.get('/auth/github', 
+app.get(
+  '/auth/github',
   passport.authenticate('github', { scope: ['user:email'] })
 );
 
-app.get('/auth/github/callback',
-  passport.authenticate('github', { failureRedirect: `${process.env.CLIENT_URL}/login` }),
+app.get(
+  '/auth/github/callback',
+  passport.authenticate('github', { session: false, failureRedirect: `${process.env.CLIENT_URL}/login` }),
   (req, res) => {
     const token = generateToken(req.user._id);
-    const redirectUrl = `${process.env.CLIENT_URL}/login?token=${token}&user=${encodeURIComponent(JSON.stringify({ id: req.user._id, name: req.user.name, email: req.user.email, role: req.user.role }))}`;
-    res.redirect(redirectUrl);
+    res.redirect(`${process.env.CLIENT_URL}/login?token=${token}`);
   }
 );
 
-// Include other auth routes if you have them
-app.use('/api/auth', require('./routes/auth'));
-
-// Debug endpoint to inspect OAuth callback settings (does NOT return secrets)
-app.get('/auth/debug', (req, res) => {
-  const env = process.env.NODE_ENV || 'development';
-  res.json({
-    env,
-    clientUrl: process.env.CLIENT_URL || null,
-    google: { 
-      callbackURL: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:5000/auth/google/callback'
-    },
-    github: { 
-      callbackURL: process.env.GITHUB_CALLBACK_URL || 'http://localhost:5000/auth/github/callback'
-    }
-  });
-});
-
 // =======================
-// Error handling
+// Error handler
 // =======================
+
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ success: false, message: 'Something went wrong!' });
+  console.error(err);
+  res.status(500).json({ message: 'Server error' });
 });
 
 // =======================
 // MongoDB Connection
 // =======================
+
 const connectDB = async () => {
-  try {
-    await mongoose.connect(process.env.MONGODB_URI);
-    console.log('✅ MongoDB connected successfully');
-  } catch (error) {
-    console.error('❌ MongoDB connection error:', error);
-    process.exit(1);
-  }
+  await mongoose.connect(process.env.MONGODB_URI);
+  console.log('✅ MongoDB connected');
 };
 
 // =======================
 // Start Server
 // =======================
-const PORT = process.env.PORT || 5000;
-const startServer = async () => {
-  await connectDB();
-  app.listen(PORT, () => {
-    console.log(`🚀 StemTribe Africa LMS running on port ${PORT}`);
-    console.log(`📍 Health: http://localhost:${PORT}/api/health`);
-    console.log(`📊 Users: http://localhost:${PORT}/api/all-users`);
-    console.log(`🌐 Google OAuth: http://localhost:${PORT}/auth/google`);
-    console.log(`🌐 GitHub OAuth: http://localhost:${PORT}/auth/github`);
-  });
-};
 
-startServer();
+const PORT = process.env.PORT || 5000;
+
+connectDB().then(() => {
+  app.listen(PORT, () => {
+    console.log(`🚀 LMS Backend running on port ${PORT}`);
+  });
+});
