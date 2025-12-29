@@ -179,10 +179,18 @@ const connectDB = async () => {
 // =======================
 // Start Server
 // =======================
+// Mount course routes
+const coursesRouter = require('./routes/courses');
+app.use('/api/courses', coursesRouter);
+
+// Seed helper
+const seedCourses = require('./seed/seedCourses');
 
 const PORT = process.env.PORT || 5000;
 
 connectDB().then(() => {
+  // seed sample data (non-destructive)
+  seedCourses().catch(() => {});
   app.listen(PORT, () => {
     console.log(`🚀 LMS Backend running on port ${PORT}`);
   });
