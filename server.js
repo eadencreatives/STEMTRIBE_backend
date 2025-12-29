@@ -129,11 +129,22 @@ app.get('/api/all-users', async (req, res) => {
   }
 });
 
-// Google OAuth routes
-app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+// Google OAuth routes (use environment-appropriate callback URL to avoid redirect_uri_mismatch)
+app.get('/auth/google', (req, res, next) => {
+  const callbackURL = process.env.NODE_ENV === 'production'
+    ? process.env.GOOGLE_CALLBACK_URL
+    : (process.env.GOOGLE_CALLBACK_URL_LOCAL || 'http://localhost:5000/auth/google/callback');
+  console.log('[auth] initiating Google OAuth, callbackURL=', callbackURL);
+  passport.authenticate('google', { scope: ['profile', 'email'], callbackURL })(req, res, next);
+});
 
 app.get('/auth/google/callback',
-  passport.authenticate('google', { failureRedirect: `${process.env.CLIENT_URL}/login` }),
+  (req, res, next) => {
+    const callbackURL = process.env.NODE_ENV === 'production'
+      ? process.env.GOOGLE_CALLBACK_URL
+      : (process.env.GOOGLE_CALLBACK_URL_LOCAL || 'http://localhost:5000/auth/google/callback');
+    passport.authenticate('google', { failureRedirect: `${process.env.CLIENT_URL}/login`, callbackURL })(req, res, next);
+  },
   (req, res) => {
     const token = generateToken(req.user._id);
     const redirectUrl = `${process.env.CLIENT_URL}/login?token=${token}&user=${encodeURIComponent(JSON.stringify({ id: req.user._id, name: req.user.name, email: req.user.email, role: req.user.role }))}`;
@@ -141,10 +152,22 @@ app.get('/auth/google/callback',
   }
 );
 
-app.get('/auth/github', passport.authenticate('github', { scope: ['user:email'] }));
+// GitHub OAuth routes (use environment-appropriate callback URL)
+app.get('/auth/github', (req, res, next) => {
+  const callbackURL = process.env.NODE_ENV === 'production'
+    ? process.env.GITHUB_CALLBACK_URL
+    : (process.env.GITHUB_CALLBACK_URL_LOCAL || 'http://localhost:5000/auth/github/callback');
+  console.log('[auth] initiating GitHub OAuth, callbackURL=', callbackURL);
+  passport.authenticate('github', { scope: ['user:email'], callbackURL })(req, res, next);
+});
 
 app.get('/auth/github/callback',
-  passport.authenticate('github', { failureRedirect: `${process.env.CLIENT_URL}/login` }),
+  (req, res, next) => {
+    const callbackURL = process.env.NODE_ENV === 'production'
+      ? process.env.GITHUB_CALLBACK_URL
+      : (process.env.GITHUB_CALLBACK_URL_LOCAL || 'http://localhost:5000/auth/github/callback');
+    passport.authenticate('github', { failureRedirect: `${process.env.CLIENT_URL}/login`, callbackURL })(req, res, next);
+  },
   (req, res) => {
     const token = generateToken(req.user._id);
     const redirectUrl = `${process.env.CLIENT_URL}/login?token=${token}&user=${encodeURIComponent(JSON.stringify({ id: req.user._id, name: req.user.name, email: req.user.email, role: req.user.role }))}`;
@@ -154,6 +177,21 @@ app.get('/auth/github/callback',
 
 // Include other auth routes if you have them
 app.use('/api/auth', require('./routes/auth'));
+
+// Debug endpoint to inspect OAuth callback settings (does NOT return secrets)
+app.get('/auth/debug', (req, res) => {
+  const env = process.env.NODE_ENV || 'development';
+  const googleProd = process.env.GOOGLE_CALLBACK_URL || null;
+  const googleLocal = process.env.GOOGLE_CALLBACK_URL_LOCAL || 'http://localhost:5000/auth/google/callback';
+  const githubProd = process.env.GITHUB_CALLBACK_URL || null;
+  const githubLocal = process.env.GITHUB_CALLBACK_URL_LOCAL || 'http://localhost:5000/auth/github/callback';
+  res.json({
+    env,
+    clientUrl: process.env.CLIENT_URL || null,
+    google: { production: googleProd, local: googleLocal },
+    github: { production: githubProd, local: githubLocal }
+  });
+});
 
 // =======================
 // Error handling
