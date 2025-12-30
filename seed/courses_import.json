@@ -1,0 +1,125 @@
+[
+  {
+    "title": "Python for Data Science — STEMtribe Africa",
+    "slug": "python-for-data-science",
+    "description": "A gentle, rigorous introduction to Python for data science with practical examples and a capstone project.",
+    "modules": [
+      {
+        "title": "Welcome to STEMTRIBE AFRICA",
+        "order": 0,
+        "topics": [
+          {
+            "title": "Welcome note and what to expect",
+            "intro": "A short welcome video and overview of the course.",
+            "description": "Welcome to the world of Python. This course provides a fully configured environment so you can focus on learning. We'll cover syntax, data types, structures, libraries, basic ML, and a capstone.",
+            "examples": [],
+            "practiceQuestions": [],
+            "order": 0
+          }
+        ]
+      },
+      {
+        "title": "Python Syntax",
+        "order": 1,
+        "topics": [
+          {
+            "title": "Hello world & indentation",
+            "intro": "Python uses indentation for blocks and simple readable syntax.",
+            "description": "Learn how to write your first Python statement and how indentation defines code blocks.",
+            "examples": ["print(\"Hello, World!\")"],
+            "practiceQuestions": [
+              { "question": "Which symbol starts a single-line comment in Python?", "choices": ["#", "//", "/* */"], "answer": "#" }
+            ],
+            "order": 0
+          },
+          {
+            "title": "Comments and multi-line notes",
+            "intro": "Document your code with comments for clarity and collaboration.",
+            "description": "Use # for single-line comments and triple quotes for longer explanatory blocks.",
+            "examples": ["# This is a comment", "\"\"\"This is a multi-line note\"\"\""],
+            "practiceQuestions": [],
+            "order": 1
+          }
+        ]
+      },
+      {
+        "title": "Python Data Types",
+        "order": 2,
+        "topics": [
+          {
+            "title": "Numbers and strings",
+            "intro": "Understand integers, floats, and text.",
+            "description": "Use numbers for calculations and strings for text data; use type() to inspect values.",
+            "examples": ["x = 2", "y = \"Brian\"", "print(type(x))", "print(type(y))"],
+            "practiceQuestions": [],
+            "order": 0
+          },
+          {
+            "title": "Case sensitivity and naming",
+            "intro": "Variables are case-sensitive in Python.",
+            "description": "Be consistent when naming variables; a and A are distinct identifiers.",
+            "examples": ["a = 2", "A = 5", "print(a, A)"],
+            "practiceQuestions": [],
+            "order": 1
+          }
+        ]
+      },
+      {
+        "title": "Python Data Structures",
+        "order": 3,
+        "topics": [
+          {
+            "title": "Lists, tuples, dictionaries",
+            "intro": "Core collection types for organizing data.",
+            "description": "Learn when to use lists (ordered, mutable), tuples (ordered, immutable), and dicts (keyed collections).",
+            "examples": ["my_list = [1,2,3]", "my_tuple = (1,2)", "my_dict = {\"key\": \"value\"}"],
+            "practiceQuestions": [],
+            "order": 0
+          }
+        ]
+      },
+      {
+        "title": "Python Data Libraries",
+        "order": 4,
+        "topics": [
+          {
+            "title": "NumPy & pandas overview",
+            "intro": "Key libraries for numerical work and tabular data.",
+            "description": "Introduce arrays, vectorized operations and DataFrame basics used across data science and life-science workflows.",
+            "examples": ["import numpy as np", "import pandas as pd"],
+            "practiceQuestions": [],
+            "order": 0
+          }
+        ]
+      },
+      {
+        "title": "Basic Machine Learning",
+        "order": 5,
+        "topics": [
+          {
+            "title": "Intro to scikit-learn",
+            "intro": "Basic supervised models and model evaluation.",
+            "description": "Teach simple classifiers/regressors, train/test splits and evaluation metrics used in scientific projects.",
+            "examples": ["from sklearn.model_selection import train_test_split", "from sklearn.ensemble import RandomForestClassifier"],
+            "practiceQuestions": [],
+            "order": 0
+          }
+        ]
+      },
+      {
+        "title": "Python Capstone Project",
+        "order": 6,
+        "topics": [
+          {
+            "title": "Capstone: small data-science project",
+            "intro": "Apply everything you've learned on a small dataset.",
+            "description": "Design a simple analysis pipeline, produce plots, and interpret results — suitable for life-science datasets.",
+            "examples": [],
+            "practiceQuestions": [],
+            "order": 0
+          }
+        ]
+      }
+    ]
+  }
+]
