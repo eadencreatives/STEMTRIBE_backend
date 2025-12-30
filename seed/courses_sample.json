@@ -1,0 +1,23 @@
+[
+  {
+    "title": "Intro to Web Development",
+    "slug": "intro-web-dev",
+    "description": "Learn the fundamentals of web development: HTML, CSS, and JavaScript.",
+    "modules": [
+      {
+        "title": "HTML Basics",
+        "order": 0,
+        "topics": [
+          {
+            "title": "What is HTML?",
+            "intro": "HTML is the markup language for web pages.",
+            "description": "Covers tags, structure and semantic HTML.",
+            "examples": ["<h1>Hello</h1>", "<p>Paragraph</p>"],
+            "practiceQuestions": [],
+            "order": 0
+          }
+        ]
+      }
+    ]
+  }
+]
